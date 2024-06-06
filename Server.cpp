@@ -67,6 +67,8 @@ void ServerSide::ConnectionListener()
 
     // Resolve the server address and port
     iResult = getaddrinfo(NULL, PORT, &hints, &result); // Maybe look into randomizing the port # for better security?
+    std::cout << "getaddrinfo: " << result->ai_addr << std::endl;
+    
     if (iResult != 0) {
         std::cerr << "getaddrinfo failed: " << iResult << std::endl;
         WSACleanup();
@@ -188,7 +190,7 @@ void ServerSide::HandleConnections(SOCKET clientSocket)
                     buffer[bytesReceived] = '\0'; // Null-terminate the received data
                     std::cout << "Received: " << buffer << std::endl;
 
-                } else
+                } else if (bytesReceived == -1)
                 {
                     // Connection closed by the client
                     std::cout << "Client disconnected. Recieved " << bytesReceived << " bytes."<< std::endl;
@@ -198,8 +200,9 @@ void ServerSide::HandleConnections(SOCKET clientSocket)
                             return s == clientSocket;
                         }), clientSockets.end());
 
-                    break; // Exit the loop if the client disconnected
+                    return; // Exit the loop if the client disconnected
                 } 
+
             }
         } else if (selectResult == 0) {
             // Timeout occurred, continue the loop
@@ -287,6 +290,7 @@ void ServerSide::TakeImage()
             SendToConnections(imageDataSize); // Send Image size first
 
             SendToConnections(buffer); // Send image data
+            // std::cout<<"Sent Data"<<std::endl;
 
             // Clean up
             SelectObject(hMemoryDC, holdBitmap);
@@ -294,7 +298,7 @@ void ServerSide::TakeImage()
             DeleteDC(hMemoryDC);
             ReleaseDC(NULL, hScreenDC);
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(17)); //A little less than 60 fps?
+        std::this_thread::sleep_for(std::chrono::milliseconds(17)); //A little less than 60 fps? 16.66 ms
     }
     
     // thread has closed

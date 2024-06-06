@@ -1,4 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
+#define UNICODE
+#define _UNICODE
 
 #include "Client.h"
 #include <iostream>
@@ -14,6 +16,8 @@
 
 SOCKET ConnectSocket;
 size_t imageSize;
+HBITMAP hBitmap = NULL;
+HWND hwnd = NULL;
 
 void ClientSide::runClient(){
     std::cout << "in client" << std::endl;
@@ -21,6 +25,7 @@ void ClientSide::runClient(){
     HINSTANCE hInstance = GetModuleHandle(NULL);
     ClientSide client;
     client.CreateImageWindow(hInstance, SW_SHOWNORMAL);    
+    testConnection();
 
     while(true)
         std::this_thread::sleep_for(std::chrono::milliseconds(17));
@@ -173,9 +178,16 @@ void ClientSide::ReceiveImages(SOCKET clientSocket) {
         if (selectResult > 0) {
             if (FD_ISSET(clientSocket, &tempfds)) {
                 // Receive data from the client
+                std::cout<<"here1"<<std::endl;
+
                 bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
 
+                std::cout<<"here2"<<std::endl;
+
+
                 if (bytesReceived > 0) {
+                    std::cout<<"here3"<<std::endl;
+
                     // Null-terminate the received data
                     buffer[bytesReceived] = '\0';
 
@@ -213,27 +225,35 @@ void ClientSide::ReceiveImages(SOCKET clientSocket) {
                         // }
                         // std::cout<<std::endl;
 
+                        
+
                         // Display the image
 
-                        BITMAPINFOHEADER bi;
-                        memcpy(&bi, dataBuffer.data(), sizeof(BITMAPINFOHEADER));
+                       // Display the image
+                        // BITMAPINFOHEADER bi;
+                        // memcpy(&bi, dataBuffer.data(), sizeof(BITMAPINFOHEADER));
 
-                        HDC hScreenDC = GetDC(NULL);
-                        HDC hMemoryDC = CreateCompatibleDC(hScreenDC);
-                        
-                        BYTE* pPixels = const_cast<BYTE*>(dataBuffer.data()) + sizeof(BITMAPINFOHEADER);
-                        
-                        HBITMAP hBitmap = CreateCompatibleBitmap(hScreenDC, bi.biWidth, bi.biHeight);
-                        SetDIBits(hMemoryDC, hBitmap, 0, bi.biHeight, pPixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS);
+                        // HDC hScreenDC = GetDC(NULL);
+                        // HDC hMemoryDC = CreateCompatibleDC(hScreenDC);
 
-                        HDC hWindowDC = GetDC(NULL);
-                        BitBlt(hWindowDC, 0, 0, bi.biWidth, bi.biHeight, hMemoryDC, 0, 0, SRCCOPY);
+                        // BYTE* pPixels = const_cast<BYTE*>(dataBuffer.data()) + sizeof(BITMAPINFOHEADER);
 
-                        // Clean up
-                        // DeleteObject(hBitmap);
+                        // HBITMAP hNewBitmap = CreateCompatibleBitmap(hScreenDC, bi.biWidth, bi.biHeight);
+                        // SetDIBits(hMemoryDC, hNewBitmap, 0, bi.biHeight, pPixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS);
+
+                        // // Clean up old bitmap
+                        // if (hBitmap) {
+                        //     DeleteObject(hBitmap);
+                        // }
+
+                        // hBitmap = hNewBitmap;
+
+                        // // Invalidate window to trigger WM_PAINT
+                        // InvalidateRect(hwnd, NULL, TRUE);
+
+                        // // Clean up
                         // DeleteDC(hMemoryDC);
                         // ReleaseDC(NULL, hScreenDC);
-                        // ReleaseDC(NULL, hWindowDC);
 
                     } else {
                         std::cout << "Unexpected data format: " << receivedData << std::endl;
@@ -264,47 +284,12 @@ void ClientSide::ReceiveImages(SOCKET clientSocket) {
     WSACleanup();
 }
 
-void ClientSide::CreateImageWindow(HINSTANCE hInstance, int nCmdShow) { //this shit broken - fix
-    const char CLASS_NAME[] = "Image Window Class";
+void ClientSide::CreateImageWindow(HINSTANCE hInstance, int nCmdShow) {
+    const wchar_t CLASS_NAME[] = L"Image Window Class";
 
     WNDCLASS wc = { };
 
-    wc.lpfnWndProc = [](HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) -> LRESULT {
-        // You can access 'this' pointer here if needed
-        ClientSide* client = nullptr;
-
-        if (uMsg == WM_CREATE) {
-            // Store the ClientSide pointer passed in CreateImageWindow
-            CREATESTRUCT* pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
-            client = reinterpret_cast<ClientSide*>(pCreate->lpCreateParams);
-            SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)client);
-        } else {
-            client = reinterpret_cast<ClientSide*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
-        }
-
-        switch (uMsg) {
-        case WM_PAINT:
-            if (client && client->hBitmap) {
-                PAINTSTRUCT ps;
-                HDC hdc = BeginPaint(hwnd, &ps);
-                HDC hMemoryDC = CreateCompatibleDC(hdc);
-                SelectObject(hMemoryDC, client->hBitmap);
-                BITMAP bm;
-                GetObject(client->hBitmap, sizeof(bm), &bm);
-                BitBlt(hdc, 0, 0, bm.bmWidth, bm.bmHeight, hMemoryDC, 0, 0, SRCCOPY);
-                DeleteDC(hMemoryDC);
-                EndPaint(hwnd, &ps);
-            }
-            break;
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            break;
-        default:
-            return DefWindowProc(hwnd, uMsg, wParam, lParam);
-        }
-        return 0;
-    };
-
+    wc.lpfnWndProc = ClientSide::WndProc;
     wc.hInstance = hInstance;
     wc.lpszClassName = CLASS_NAME;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
@@ -315,7 +300,7 @@ void ClientSide::CreateImageWindow(HINSTANCE hInstance, int nCmdShow) { //this s
     hwnd = CreateWindowEx(
         0,
         CLASS_NAME,
-        "Image Display",
+        L"Image Display",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
         NULL,
