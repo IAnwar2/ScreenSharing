@@ -217,7 +217,6 @@ void ServerSide::HandleConnections(SOCKET clientSocket)
 
 void ServerSide::TakeImage()
 {
-    
 
     while(true)
     {

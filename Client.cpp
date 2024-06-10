@@ -178,15 +178,10 @@ void ClientSide::ReceiveImages(SOCKET clientSocket) {
         if (selectResult > 0) {
             if (FD_ISSET(clientSocket, &tempfds)) {
                 // Receive data from the client
-                std::cout<<"here1"<<std::endl;
-
                 bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
-
-                std::cout<<"here2"<<std::endl;
 
 
                 if (bytesReceived > 0) {
-                    std::cout<<"here3"<<std::endl;
 
                     // Null-terminate the received data
                     buffer[bytesReceived] = '\0';
@@ -214,16 +209,17 @@ void ClientSide::ReceiveImages(SOCKET clientSocket) {
 
                             imgBytesReceived += currentBytesReceived;
                         }
+                        
 
                         //Use to check if images are being taken
-                        // uint64_t value = 0;
-                        // std::cout<<"Image value is: "<<std::endl;
-                        // for (int i = 0; i < 5; i++)
-                        // {
-                        //     value = (value << 8) | dataBuffer[i];
-                        //     std::cout<<value<< ".";
-                        // }
-                        // std::cout<<std::endl;
+                        uint64_t value = 0;
+                        std::cout<<"Image value is: "<<std::endl;
+                        for (int i = 0; i < 5; i++)
+                        {
+                            value = (value << 8) | dataBuffer[i];
+                            std::cout<<value<< ".";
+                        }
+                        std::cout<<std::endl;
 
                         
 
